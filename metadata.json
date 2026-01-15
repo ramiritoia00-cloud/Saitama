@@ -1,0 +1,5 @@
+{
+  "name": "Saitama Streak - OPM Workout Tracker",
+  "description": "A fitness tracking app inspired by the One Punch Man challenge, featuring incremental daily progress, streak systems with automatic rest days, and visual statistics.",
+  "requestFramePermissions": []
+}
