@@ -36,7 +36,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!error) {
         setProfile(data);
       } else if (error.code === 'PGRST116') {
-        // Create profile if it doesn't exist
         const { data: newProfile } = await supabase.from('profiles').insert({ user_id: userId, name: 'Héroe Nuevo' }).select().single();
         if (newProfile) setProfile(newProfile);
       }
@@ -52,31 +51,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initSession = async () => {
-      setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          // Si hay sesión real, ignoramos cualquier sesión demo previa
           localStorage.removeItem('demo_session');
           setUser(session.user);
           setIsDemo(false);
-          await Promise.all([fetchProfile(session.user.id, false), fetchStreak(session.user.id, false)]);
+          setLoading(false); // Liberar UI inmediatamente
+          // Cargar datos extra en segundo plano
+          fetchProfile(session.user.id, false);
+          fetchStreak(session.user.id, false);
         } else {
-          // Si no hay sesión real, buscamos sesión demo
           const demoSession = localStorage.getItem('demo_session');
           if (demoSession) {
             const demoUser = JSON.parse(demoSession);
             setUser(demoUser);
             setIsDemo(true);
-            await Promise.all([fetchProfile(demoUser.id, true), fetchStreak(demoUser.id, true)]);
+            setLoading(false);
+            fetchProfile(demoUser.id, true);
+            fetchStreak(demoUser.id, true);
           } else {
             setUser(null);
             setIsDemo(false);
+            setLoading(false);
           }
         }
-      } catch (e) { console.error("Session init failed", e); }
-      finally { setLoading(false); }
+      } catch (e) { 
+        console.error("Session init failed", e); 
+        setLoading(false);
+      }
     };
 
     initSession();
@@ -86,7 +90,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('demo_session');
         setUser(session.user);
         setIsDemo(false);
-        await Promise.all([fetchProfile(session.user.id, false), fetchStreak(session.user.id, false)]);
+        fetchProfile(session.user.id, false);
+        fetchStreak(session.user.id, false);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsDemo(false);

@@ -2,9 +2,9 @@
 import { supabase } from './supabaseClient';
 import { DailyWorkout, Streak, ExerciseType } from '../types';
 import { EXERCISE_GOALS, REST_DAY_THRESHOLD } from '../constants';
-// Use individual imports to resolve "no exported member" errors in some environments
-import format from 'date-fns/format';
-import subDays from 'date-fns/subDays';
+// Fix: Use direct named imports from date-fns subpaths to resolve "no exported member" or typing issues
+import { format } from 'date-fns/format';
+import { subDays } from 'date-fns/subDays';
 
 // MOCK STORAGE HELPERS
 const getLocalWorkouts = (): DailyWorkout[] => JSON.parse(localStorage.getItem('workouts_mock') || '[]');

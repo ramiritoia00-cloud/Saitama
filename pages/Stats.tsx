@@ -3,10 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { getAllStats } from '../services/workoutService';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-// Use individual imports to resolve "no exported member" errors in some environments
-import format from 'date-fns/format';
-import parseISO from 'date-fns/parseISO';
-import * as locales from 'date-fns/locale';
+// Fix: Use direct named imports from date-fns subpaths to ensure they are callable and correctly typed
+import { format } from 'date-fns/format';
+import { parseISO } from 'date-fns/parseISO';
+import { es } from 'date-fns/locale';
 import { DailyWorkout } from '../types';
 import { Trophy, TrendingUp, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 
@@ -15,8 +15,6 @@ const Stats: React.FC = () => {
   const [stats, setStats] = useState<{ totals: any, history: DailyWorkout[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'total' | 'pushups' | 'pullups' | 'squats'>('total');
-
-  const esLocale = (locales as any).es || (locales as any).default?.es;
 
   useEffect(() => {
     if (user) {
@@ -47,7 +45,7 @@ const Stats: React.FC = () => {
     .slice(0, 7)
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(w => ({
-      date: format(parseISO(w.date), 'EE', { locale: esLocale }),
+      date: format(parseISO(w.date), 'EE', { locale: es }),
       total: (w.pushups_count || 0) + (w.pullups_count || 0) + (w.squats_count || 0),
       pushups: w.pushups_count || 0,
       pullups: w.pullups_count || 0,
