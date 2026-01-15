@@ -28,9 +28,18 @@ const Login: React.FC = () => {
 
     try {
       if (isRegistering) {
-        const { error } = await supabase.auth.signUp({ email, password });
+        // Obtenemos la URL actual para que Supabase sepa a dónde volver tras la confirmación
+        const redirectUrl = window.location.origin;
+        
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            emailRedirectTo: redirectUrl,
+          }
+        });
         if (error) throw error;
-        alert('Revisa tu email para confirmar la cuenta');
+        alert('¡Registro iniciado! Revisa tu email para confirmar la cuenta. Serás redirigido de vuelta aquí.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
