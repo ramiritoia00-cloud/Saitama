@@ -9,7 +9,7 @@ import ExerciseCard from '../components/ExerciseCard';
 import { Flame, ShieldCheck, Loader2 } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { user, streak, refreshStreak } = useAuth();
+  const { user, streak, refreshStreak, isDemo } = useAuth();
   const [workout, setWorkout] = useState<DailyWorkout | null>(null);
   const [loading, setLoading] = useState(true);
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -18,15 +18,14 @@ const Dashboard: React.FC = () => {
     if (user) {
       loadData();
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const loadData = async () => {
     if (!user) return;
     try {
       setLoading(true);
-      // Solo procesar días perdidos si hay una racha activa
-      await processMissedDays(user.id);
-      const w = await getWorkoutForDate(user.id, today);
+      await processMissedDays(user.id, isDemo);
+      const w = await getWorkoutForDate(user.id, today, isDemo);
       setWorkout(w || {
         id: '',
         user_id: user.id,
@@ -48,7 +47,7 @@ const Dashboard: React.FC = () => {
   const handleAddExercise = async (type: ExerciseType, amount: number) => {
     if (!user) return;
     try {
-      const updated = await updateExerciseCount(user.id, today, type, amount);
+      const updated = await updateExerciseCount(user.id, today, type, amount, isDemo);
       setWorkout(updated);
       
       if (updated.completed) {
@@ -56,6 +55,7 @@ const Dashboard: React.FC = () => {
       }
     } catch (err) {
       console.error("Add exercise error:", err);
+      alert('Error al guardar repeticiones');
     }
   };
 
@@ -70,7 +70,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
-      {/* Hero Stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex flex-col items-center justify-center text-center shadow-lg">
           <Flame size={32} className={`${streak?.current_streak ? 'text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]' : 'text-zinc-800'} mb-2`} />
@@ -78,7 +77,7 @@ const Dashboard: React.FC = () => {
           <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">Racha Actual</span>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex flex-col items-center justify-center text-center shadow-lg">
-          <ShieldCheck size={32} className={`${streak?.rest_day_available ? 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]' : 'text-zinc-800'} mb-2`} />
+          <ShieldCheck size={32} className={`${streak?.rest_day_available ? 'text-yellow-500 drop-shadow-[0_0_8_rgba(234,179,8,0.4)]' : 'text-zinc-800'} mb-2`} />
           <span className="text-3xl font-black italic">{streak?.rest_day_available ? '1' : '0'}</span>
           <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">Descanso Disp.</span>
         </div>

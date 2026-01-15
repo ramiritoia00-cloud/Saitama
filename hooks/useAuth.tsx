@@ -26,49 +26,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
 
-  const fetchProfile = async (userId: string) => {
-    if (isDemo) {
+  const fetchProfile = async (userId: string, demoMode: boolean) => {
+    if (demoMode) {
       setProfile({ user_id: userId, name: 'Saitama (Demo)', weight: 70, created_at: '', updated_at: '' });
       return;
     }
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).single();
-      if (!error) setProfile(data);
-    } catch (e) { console.error(e); }
+      if (!error) {
+        setProfile(data);
+      } else if (error.code === 'PGRST116') {
+        // Create profile if it doesn't exist
+        const { data: newProfile } = await supabase.from('profiles').insert({ user_id: userId, name: 'Héroe Nuevo' }).select().single();
+        if (newProfile) setProfile(newProfile);
+      }
+    } catch (e) { console.error("Error profile:", e); }
   };
 
-  const fetchStreak = async (userId: string) => {
+  const fetchStreak = async (userId: string, demoMode: boolean) => {
     try {
-      const s = await getStreak(userId);
+      const s = await getStreak(userId, demoMode);
       setStreak(s);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Error streak:", e); }
   };
 
   useEffect(() => {
-    // Verificar si hay una sesión demo guardada
-    const demoSession = localStorage.getItem('demo_session');
-    if (demoSession) {
-      const demoUser = JSON.parse(demoSession);
-      setUser(demoUser);
-      setIsDemo(true);
-      fetchProfile(demoUser.id);
-      fetchStreak(demoUser.id);
-      setLoading(false);
-      return;
-    }
-
     const initSession = async () => {
+      setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        
         if (session?.user) {
+          // Si hay sesión real, ignoramos cualquier sesión demo previa
+          localStorage.removeItem('demo_session');
           setUser(session.user);
-          await Promise.all([fetchProfile(session.user.id), fetchStreak(session.user.id)]);
+          setIsDemo(false);
+          await Promise.all([fetchProfile(session.user.id, false), fetchStreak(session.user.id, false)]);
+        } else {
+          // Si no hay sesión real, buscamos sesión demo
+          const demoSession = localStorage.getItem('demo_session');
+          if (demoSession) {
+            const demoUser = JSON.parse(demoSession);
+            setUser(demoUser);
+            setIsDemo(true);
+            await Promise.all([fetchProfile(demoUser.id, true), fetchStreak(demoUser.id, true)]);
+          } else {
+            setUser(null);
+            setIsDemo(false);
+          }
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("Session init failed", e); }
       finally { setLoading(false); }
     };
+
     initSession();
-  }, [isDemo]);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        localStorage.removeItem('demo_session');
+        setUser(session.user);
+        setIsDemo(false);
+        await Promise.all([fetchProfile(session.user.id, false), fetchStreak(session.user.id, false)]);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsDemo(false);
+        setProfile(null);
+        setStreak(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const loginAsDemo = () => {
     const demoUser = { id: 'demo-user-id', email: 'admin@test.com' };
@@ -79,15 +107,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     localStorage.removeItem('demo_session');
+    await supabase.auth.signOut();
     setIsDemo(false);
     setUser(null);
     setProfile(null);
     setStreak(null);
-    await supabase.auth.signOut();
   };
 
-  const refreshProfile = async () => { if (user) await fetchProfile(user.id); };
-  const refreshStreak = async () => { if (user) await fetchStreak(user.id); };
+  const refreshProfile = async () => { if (user) await fetchProfile(user.id, isDemo); };
+  const refreshStreak = async () => { if (user) await fetchStreak(user.id, isDemo); };
 
   return (
     <AuthContext.Provider value={{ user, profile, streak, loading, isDemo, signOut, refreshProfile, refreshStreak, loginAsDemo }}>

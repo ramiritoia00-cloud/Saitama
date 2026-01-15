@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
-import { Flame, Mail, Lock, Loader2, Play } from 'lucide-react';
+import { Flame, Mail, Lock, Loader2, Play, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,24 +29,21 @@ const Login: React.FC = () => {
 
     try {
       if (isRegistering) {
-        // Obtenemos la URL actual para que Supabase sepa a dónde volver tras la confirmación
         const redirectUrl = window.location.origin;
-        
         const { error } = await supabase.auth.signUp({ 
           email, 
           password,
-          options: {
-            emailRedirectTo: redirectUrl,
-          }
+          options: { emailRedirectTo: redirectUrl }
         });
         if (error) throw error;
-        alert('¡Registro iniciado! Revisa tu email para confirmar la cuenta. Serás redirigido de vuelta aquí.');
+        alert('¡Registro iniciado! Revisa tu email para confirmar la cuenta.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
     } catch (err: any) {
-      setError(err.message || 'Ocurrió un error');
+      console.error("Auth error:", err);
+      setError(err.message || 'Error al intentar acceder. Verifica tus datos.');
     } finally {
       setLoading(false);
     }
@@ -78,16 +76,28 @@ const Login: React.FC = () => {
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-4 pl-12 font-bold focus:ring-2 focus:ring-red-600 focus:outline-none transition-all placeholder:text-zinc-700"
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-4 pl-12 pr-12 font-bold focus:ring-2 focus:ring-red-600 focus:outline-none transition-all placeholder:text-zinc-700"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
-          {error && <p className="text-red-500 text-[10px] font-black uppercase text-center bg-red-500/10 py-2 rounded-lg border border-red-500/20">{error}</p>}
+          {error && (
+            <div className="flex items-center gap-2 text-red-500 text-[10px] font-black uppercase bg-red-500/10 py-3 px-4 rounded-xl border border-red-500/20">
+              <AlertCircle size={14} />
+              <span>{error}</span>
+            </div>
+          )}
 
           <button
             type="submit"

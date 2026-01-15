@@ -3,30 +3,32 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { getAllStats } from '../services/workoutService';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { format, parseISO } from 'date-fns';
+// Use individual imports to resolve "no exported member" errors in some environments
+import format from 'date-fns/format';
+import parseISO from 'date-fns/parseISO';
 import * as locales from 'date-fns/locale';
 import { DailyWorkout } from '../types';
 import { Trophy, TrendingUp, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 
 const Stats: React.FC = () => {
-  const { user, streak } = useAuth();
+  const { user, streak, isDemo } = useAuth();
   const [stats, setStats] = useState<{ totals: any, history: DailyWorkout[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'total' | 'pushups' | 'pullups' | 'squats'>('total');
 
-  // Obtener el locale español de forma segura
   const esLocale = (locales as any).es || (locales as any).default?.es;
 
   useEffect(() => {
     if (user) {
       loadStats();
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const loadStats = async () => {
     if (!user) return;
     try {
-      const s = await getAllStats(user.id);
+      setLoading(true);
+      const s = await getAllStats(user.id, isDemo);
       setStats(s);
     } catch (err) {
       console.error("Stats load error:", err);
@@ -37,7 +39,7 @@ const Stats: React.FC = () => {
 
   if (loading) return (
     <div className="h-[60vh] flex items-center justify-center">
-      <Loader2 className="animate-spin text-zinc-500" size={32} />
+      <Loader2 className="animate-spin text-red-600" size={32} />
     </div>
   );
 
@@ -46,10 +48,10 @@ const Stats: React.FC = () => {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(w => ({
       date: format(parseISO(w.date), 'EE', { locale: esLocale }),
-      total: w.pushups_count + w.pullups_count + w.squats_count,
-      pushups: w.pushups_count,
-      pullups: w.pullups_count,
-      squats: w.squats_count,
+      total: (w.pushups_count || 0) + (w.pullups_count || 0) + (w.squats_count || 0),
+      pushups: w.pushups_count || 0,
+      pullups: w.pullups_count || 0,
+      squats: w.squats_count || 0,
       completed: w.completed,
       rest: w.used_rest_day
     }));
