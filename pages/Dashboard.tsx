@@ -6,12 +6,13 @@ import { DailyWorkout, ExerciseType } from '../types';
 import { getWorkoutForDate, updateExerciseCount, processMissedDays } from '../services/workoutService';
 import { format } from 'date-fns';
 import ExerciseCard from '../components/ExerciseCard';
-import { Flame, ShieldCheck, Loader2 } from 'lucide-react';
+import { Flame, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { user, streak, refreshStreak, isDemo } = useAuth();
   const [workout, setWorkout] = useState<DailyWorkout | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
@@ -46,6 +47,7 @@ const Dashboard: React.FC = () => {
 
   const handleAddExercise = async (type: ExerciseType, amount: number) => {
     if (!user) return;
+    setSaveError(null);
     try {
       const updated = await updateExerciseCount(user.id, today, type, amount, isDemo);
       setWorkout(updated);
@@ -55,7 +57,8 @@ const Dashboard: React.FC = () => {
       }
     } catch (err) {
       console.error("Add exercise error:", err);
-      alert('Error al guardar repeticiones');
+      setSaveError("No se pudo guardar. Reintenta pronto.");
+      setTimeout(() => setSaveError(null), 3000);
     }
   };
 
@@ -77,11 +80,18 @@ const Dashboard: React.FC = () => {
           <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">Racha Actual</span>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex flex-col items-center justify-center text-center shadow-lg">
-          <ShieldCheck size={32} className={`${streak?.rest_day_available ? 'text-yellow-500 drop-shadow-[0_0_8_rgba(234,179,8,0.4)]' : 'text-zinc-800'} mb-2`} />
+          <ShieldCheck size={32} className={`${streak?.rest_day_available ? 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]' : 'text-zinc-800'} mb-2`} />
           <span className="text-3xl font-black italic">{streak?.rest_day_available ? '1' : '0'}</span>
           <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">Descanso Disp.</span>
         </div>
       </div>
+
+      {saveError && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl p-3 flex items-center justify-center gap-2 animate-in slide-in-from-top-2">
+          <AlertCircle size={16} />
+          <span className="text-xs font-black uppercase tracking-widest">{saveError}</span>
+        </div>
+      )}
 
       {workout?.completed && (
         <div className="bg-green-500/10 border border-green-500/20 text-green-500 rounded-2xl p-4 text-center animate-bounce">

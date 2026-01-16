@@ -38,7 +38,7 @@ const ensureWorkoutExists = async (userId: string, date: string, isDemo: boolean
 
   if (existing) return existing.id;
 
-  // 2. Si no existe, crearlo (Lógica Defensiva)
+  // 2. Si no existe, crearlo con el nombre específico solicitado
   const { data: created, error } = await supabase
     .from('workouts')
     .insert({ 
@@ -51,8 +51,7 @@ const ensureWorkoutExists = async (userId: string, date: string, isDemo: boolean
     .single();
 
   if (error) {
-    // Si hubo un error de duplicado por carrera crítica, re-intentar búsqueda
-    if (error.code === '23505') {
+    if (error.code === '23505') { // Manejo de duplicado por concurrencia
        const { data: retry } = await supabase
         .from('workouts')
         .select('id')
@@ -73,7 +72,6 @@ export const getWorkoutForDate = async (userId: string, date: string, isDemo: bo
     return workouts.find((w: any) => w.date === date) || null;
   }
 
-  // Obtenemos el padre y sus hijos en una sola consulta eficiente
   const { data: workout, error } = await supabase
     .from('workouts')
     .select('*, workout_logs(*)')
@@ -89,7 +87,6 @@ export const getWorkoutForDate = async (userId: string, date: string, isDemo: bo
 
 export const updateExerciseCount = async (userId: string, date: string, type: ExerciseType, increment: number, isDemo: boolean): Promise<DailyWorkout> => {
   if (isDemo) {
-    // Lógica Mock simplificada para demo
     const workouts = JSON.parse(localStorage.getItem('workouts_mock') || '[]');
     let w = workouts.find((item: any) => item.date === date);
     if (!w) {
@@ -107,10 +104,10 @@ export const updateExerciseCount = async (userId: string, date: string, type: Ex
     return w;
   }
 
-  // 1. Asegurar registro PADRE (workouts)
+  // 1. Asegurar registro PADRE
   const workoutId = await ensureWorkoutExists(userId, date, isDemo);
 
-  // 2. Obtener logs actuales para este ejercicio
+  // 2. Obtener repeticiones actuales
   const { data: existingLog } = await supabase
     .from('workout_logs')
     .select('reps')
@@ -120,7 +117,7 @@ export const updateExerciseCount = async (userId: string, date: string, type: Ex
 
   const newReps = (existingLog?.reps || 0) + increment;
 
-  // 3. Upsert en tabla HIJA (workout_logs)
+  // 3. Upsert en logs (Hijo)
   const { error: logError } = await supabase
     .from('workout_logs')
     .upsert({ 
@@ -131,7 +128,7 @@ export const updateExerciseCount = async (userId: string, date: string, type: Ex
 
   if (logError) throw logError;
 
-  // 4. Recalcular completado
+  // 4. Calcular progreso total
   const { data: allLogs } = await supabase
     .from('workout_logs')
     .select('*')
@@ -143,7 +140,7 @@ export const updateExerciseCount = async (userId: string, date: string, type: Ex
     (logs.find(l => l.exercise_type === ExerciseType.PULLUPS)?.reps || 0) >= EXERCISE_GOALS[ExerciseType.PULLUPS].goal &&
     (logs.find(l => l.exercise_type === ExerciseType.SQUATS)?.reps || 0) >= EXERCISE_GOALS[ExerciseType.SQUATS].goal;
 
-  // 5. Actualizar estado en PADRE
+  // 5. Actualizar estado del padre
   const { data: updatedWorkout } = await supabase
     .from('workouts')
     .update({ completed: isCompleted })
@@ -193,10 +190,8 @@ export const processMissedDays = async (userId: string, isDemo: boolean) => {
   
   if (!lastWorkout || (!lastWorkout.completed && !lastWorkout.used_rest_day)) {
     if (streak.rest_day_available) {
-      if (isDemo) {
-        // En demo simplemente guardamos el estado
-      } else {
-        const workoutId = await ensureWorkoutExists(userId, yesterday, isDemo);
+      if (!isDemo) {
+        const workoutId = await ensureWorkoutExists(userId, yesterday, false);
         await supabase.from('workouts').update({ used_rest_day: true }).eq('id', workoutId);
         await supabase.from('streaks').update({ rest_day_available: false }).eq('user_id', userId);
       }
